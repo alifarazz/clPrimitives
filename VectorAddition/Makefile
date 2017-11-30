@@ -15,11 +15,8 @@ STD=c++14
 PTHREAD=-pthread
 
 
-OCLCCFLAGS = -I /opt/AMDAPPSDK-3.0/include/
-OCLLDFLAGS = -L /opt/AMDAPPSDK-3.0/lib/x86_64/ -lOpenCL
-
-CCFLAGS = $(WARN) $(PTHREAD) -std="$(STD)"  -stdlib=libstdc++  $(OPT) $(OCLCCFLAGS)
-LDFLAGS = $(PTHREAD)  $(OCLLDFLAGS)
+CCFLAGS = $(WARN) $(PTHREAD) -std="$(STD)"  -stdlib=libstdc++  $(OPT) -I /opt/AMDAPPSDK-3.0/include/
+LDFLAGS = $(PTHREAD) -L /opt/AMDAPPSDK-3.0/lib/x86_64/ -lOpenCL
 
 SRCS = $(wildcard *.cpp)
 OBJECTS = $(patsubst %.cpp, %.o, $(SRCS))
