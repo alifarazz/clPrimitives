@@ -1,5 +1,5 @@
 # compiler
-CC=clang++
+CC=g++
 # linker
 LD=$(CC)
 # optimisation
