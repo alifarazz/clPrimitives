@@ -9,39 +9,32 @@
 
 #include <boost/gil/extension/io/jpeg_io.hpp>
 
+#include "../utils.hpp"
+
 namespace gil = boost::gil;
 
 #define HIST_BINS 256
 
-std::string ReadTextFile(const char *s) {
-  std::ifstream mfile(s);
-  std::string content((std::istreambuf_iterator<char>(mfile)),
-		      (std::istreambuf_iterator<char>()));
-  mfile.close();
-
-  return content;
-}
-
 int main() {
   // auto beg = std::chrono::high_resolution_clock::now();
+
   gil::rgb8_image_t gilImage;
   gil::jpeg_read_image("../lena.small.jpg", gilImage);
 
   const int imageElements = gilImage.width() * gilImage.height();
   const size_t imageSize = imageElements * sizeof(int);
   const int histogramSize = HIST_BINS * sizeof(int);
-
   int *img = new int[imageElements];
 
-  for (int i = 0; i < gilImage.height(); i++)
-    for (int j = 0; j < gilImage.width(); j++) {
-      auto px = *const_view(gilImage).at(i, j);
-      img[i * gilImage.width() + j] = (int)px[0];
-    }
+  for (int x = 0, i = 0; x < gilImage.width(); ++x) {
+    auto it = gilImage._view.col_begin(x);
+    for (int y = 0; y < gilImage.height(); ++y)
+      img[i++] = boost::gil::at_c<0>(it[y]);
+  }
   // auto end = std::chrono::high_resolution_clock::now();
   /* std::cout << "time : "
-	    << std::chrono::duration_cast<std::chrono::milliseconds>(end - beg)
-		   .count()
+	    << std::chrono::duration_cast<std::chrono::milliseconds>(end -
+     beg) .count()
 	    << "milli sec" << std::endl; */
 
   int *hOutputHistogram = new int[histogramSize];
@@ -97,8 +90,7 @@ int main() {
     vecadd_kernel.setArg(2, bufOutputHistogram);
 
     // Execute the kernel
-    cl::NDRange global(
-	imageElements); // why didn't it use the total element size
+    cl::NDRange global(imageElements);
     cl::NDRange local(256);
     queue.enqueueNDRangeKernel(vecadd_kernel, cl::NullRange, global, local);
     // Copy the output data back to the host
@@ -106,14 +98,16 @@ int main() {
 			    hOutputHistogram);
     queue.flush();
 
-    for (size_t i = 0; i < histogramSize / sizeof(int); i++)
-      std::cout << i << ": " << hOutputHistogram[i] << '\n';
     std::cout.flush();
   } catch (cl::Error error) {
     std::cout << error.what() << "(" << error.err() << ")" << std::endl;
   }
 
+  for (size_t i = 0; i < histogramSize / sizeof(int); i++)
+    std::cout << i << ": " << hOutputHistogram[i] << '\n';
+
   delete[] hOutputHistogram;
+  delete[] img;
 
   return 0;
 }
