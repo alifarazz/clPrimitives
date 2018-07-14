@@ -1,6 +1,3 @@
-# executable name
-TARGET = VecAdd.out
-
 # compiler
 CC=clang++
 # linker
@@ -10,13 +7,15 @@ OPT=-ggdb
 # warnings
 WARN=-Wall -Wextra
 # standards
-STD=c++14
+STD=c++17
 # pthread
-PTHREAD=-pthread
+# PTHREAD=-pthread
+PTHREAD=
 
+TARGET = hist
 
-CCFLAGS = $(WARN) $(PTHREAD) -std="$(STD)"  -stdlib=libstdc++  $(OPT) -I /opt/AMDAPPSDK-3.0/include/
-LDFLAGS = $(PTHREAD) -L /opt/AMDAPPSDK-3.0/lib/x86_64/ -lOpenCL
+CCFLAGS = $(WARN) $(PTHREAD) -std="$(STD)"  $(OPT) -pipe  -Iboost `pkg-config --cflags OpenCL` # `Magick++-config --cppflags --cxxflags` # -cl-std=CL2.0
+LDFLAGS = $(PTHREAD) `pkg-config --libs  OpenCL` -ljpeg # `Magick++-config --ldflags --libs`  # -export-dynamic
 
 SRCS = $(wildcard *.cpp)
 OBJECTS = $(patsubst %.cpp, %.o, $(SRCS))

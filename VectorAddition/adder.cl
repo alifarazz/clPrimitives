@@ -1,14 +1,12 @@
-/**
+/*
  * Add two vectors
- * @param output stores result
  * @param inputA first vector
- * @param inputA second vector
+ * @param inputB second vector
+ * @param output stores result
  */
-__kernel addVector(__global float output,
-		   __global float inputA,
-		   __global float inputB)
-{
+__kernel void vecadd(__global int *inputA, __global int *inputB, __global int *output) {
   int gid = get_global_id(0);
 
-  output[gid] = inputA[gid] + inputB(gid);
+
+  output[gid] = inputA[gid] + inputB[gid];
 }
