@@ -56,7 +56,7 @@ int main(int argc, char* argv[])
   if (argc != 4) {
     cerr << R"(Correct way to execute this program is:
 ./transpose platform-num data_size workgroup_size
-For example: ./transpose 0 10000 512)";
+For example: ./transpose 0 1024 32 )";
     return 1;
   }
 
@@ -64,11 +64,13 @@ For example: ./transpose 0 10000 512)";
   int n_elem = atoi(argv[2]);
   int local_work_size = atoi(argv[3]);
 
+  cl_int d1_err, d2_err;
+
   vector<float> h_data(n_elem * n_elem); // host, data
   vector<float> h_output(n_elem * n_elem); // host, output
   vector<float> d1_output(n_elem * n_elem); // device, output
   vector<float> d2_output(n_elem * n_elem); // device, output
-  vector<float> d3_output(n_elem * n_elem); // device, output
+  // vector<float> d3_output(n_elem * n_elem); // device, output
 
   // fill A with random doubles
   uniform_real_distribution<> dis(0, RANDOM_NUMBER_MAX);
@@ -137,13 +139,13 @@ For example: ./transpose 0 10000 512)";
     cl::NDRange global(n_elem, n_elem);
     cl::NDRange local(local_work_size, local_work_size);
 
-    queue.enqueueWriteBuffer
+    d1_err =  queue.enqueueWriteBuffer
       (buf_src, CL_TRUE, 0, h_data.size() * sizeof(float), h_data.data());
-    queue.enqueueNDRangeKernel
+    d1_err |= queue.enqueueNDRangeKernel
       (ker_trans_per_elem, cl::NullRange, global, local);
-    queue.enqueueReadBuffer
+    d1_err |= queue.enqueueReadBuffer
       (buf_target, CL_TRUE, 0, d1_output.size() * sizeof(float), d1_output.data());
-    queue.finish();
+    d1_err |= queue.finish();
     te_trans_per_elem = chrono::high_resolution_clock::now();
   }
 
@@ -158,13 +160,13 @@ For example: ./transpose 0 10000 512)";
     cl::NDRange global(n_elem, n_elem);
     cl::NDRange local(local_work_size, local_work_size);
 
-    queue.enqueueWriteBuffer
+    d2_err =  queue.enqueueWriteBuffer
       (buf_src, CL_TRUE, 0, h_data.size() * sizeof(float), h_data.data());
-    queue.enqueueNDRangeKernel
+    d2_err |= queue.enqueueNDRangeKernel
       (ker_trans_per_elem_tiled, cl::NullRange, global, local);
-    queue.enqueueReadBuffer
+    d2_err |= queue.enqueueReadBuffer
       (buf_target, CL_TRUE, 0, d2_output.size() * sizeof(float), d2_output.data());
-    queue.finish();
+    d2_err |= queue.finish();
     te_trans_per_elem_tiled = chrono::high_resolution_clock::now();
   }
 
@@ -181,13 +183,15 @@ For example: ./transpose 0 10000 512)";
 
   cout << "Transpose_per_element: " << ocl_per_elem_time << "\n";
   cout << "Verifiying transpose_per_element... "
-       // << ((const char* []){"Error","Ok"})[mismatch(h_output.begin(), h_output.end(), d1_output.begin()).first == h_output.end()]
+       << ((const char* []){"Error","Ok"})[mismatch(h_output.begin(), h_output.end(), d1_output.begin()).first == h_output.end()]
+       << "\ncl_err status = " << d1_err
        << "\n";
   // copy(d1_output.begin(), d1_output.end(), ostream_iterator<float>(cout , " ")); cout << endl;
 
   cout << "Transpose_per_element_tiled: " << ocl_per_elem_tiled_time << "\n";
   cout << "Verifiying transpose_per_element_tiled... "
-       // << ((const char* []){"Error","Ok"})[mismatch(h_output.begin(), h_output.end(), d2_output.begin()).first == h_output.end()]
+       << ((const char* []){"Error","Ok"})[mismatch(h_output.begin(), h_output.end(), d2_output.begin()).first == h_output.end()]
+       << "\ncl_err status = " << d2_err
        << "\n";
   // copy(d2_output.begin(), d2_output.end(), ostream_iterator<float>(cout , " ")); cout << endl;
   cout << endl;

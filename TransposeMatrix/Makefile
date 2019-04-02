@@ -14,7 +14,7 @@ STD=c++17
 PTHREAD=-pthread
 # PTHREAD=
 
-TARGET = tranpose
+TARGET = transpose
 
 CCFLAGS = $(WARN) $(PTHREAD) -std="$(STD)" $(VARS)  $(OPT) -pipe  -Iboost `pkg-config --cflags OpenCL` # `Magick++-config --cppflags --cxxflags` # -cl-std=CL2.0
 LDFLAGS = $(PTHREAD) `pkg-config --libs  OpenCL` # `Magick++-config --ldflags --libs`  # -export-dynamic
