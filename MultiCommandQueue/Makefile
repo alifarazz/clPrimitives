@@ -6,6 +6,8 @@ LD=$(CC)
 OPT=-Ofast # -ggdb
 # warnings
 WARN=-Wall -Wextra
+# vars
+VARS = -D OPENCL_1
 # standards
 STD=c++17
 # pthread
@@ -14,7 +16,7 @@ PTHREAD=-pthread
 
 TARGET = multi_cq
 
-CCFLAGS = $(WARN) $(PTHREAD) -std="$(STD)"  $(OPT) -pipe  -Iboost `pkg-config --cflags OpenCL` # `Magick++-config --cppflags --cxxflags` # -cl-std=CL2.0
+CCFLAGS = $(WARN) $(PTHREAD) -std="$(STD)" $(VARS) $(OPT) -pipe  -Iboost `pkg-config --cflags OpenCL` # `Magick++-config --cppflags --cxxflags` # -cl-std=CL2.0
 LDFLAGS = $(PTHREAD) `pkg-config --libs  OpenCL` # `Magick++-config --ldflags --libs`  # -export-dynamic
 
 SRCS = $(wildcard *.cc)

@@ -2,6 +2,7 @@
 #define CL_HPP_TARGET_OPENCL_VERSION 200
 
 #include <algorithm>
+#include <cassert>
 #include <chrono>
 #include <fstream>
 #include <functional>
@@ -41,18 +42,19 @@ int main(int argc, char* argv[])
 
   ios_base::sync_with_stdio(false);
 
-  if (argc != 4) {
+  if (argc != 5) {
     cerr << R"(Correct way to execute this program is:
-./multi_cq data_size workgroup_size command_queue_count
-For example: ./multi_cq 10000 512 4)";
+./multi_cq platform-num data_size workgroup_size command_queue_count
+For example: ./multi_cq 0 10000 512 4 )";
     return 1;
   }
 
   auto OPERATION = [](int32_t X){return sinf(X)/1319+cosf(X)/1317+cosf(X+13)*sinf(X-13);};
 
-  int n_elem = atoi(argv[1]);
-  int local_work_size = atoi(argv[2]);
-  int cq_count = atoi(argv[3]); // cq == command_queue
+  int platform_num    {atoi(argv[1])},
+      n_elem          {atoi(argv[2])},
+      local_work_size {atoi(argv[3])},
+      cq_count        {atoi(argv[4])}; // cq == command_queue
 
   vector<int32_t> h_data(n_elem); // host, data
   vector<int32_t> h_output(n_elem); // host, output
@@ -72,7 +74,8 @@ For example: ./multi_cq 10000 512 4)";
   // Initialize OpenCL
   std::vector<cl::Platform> platforms;
   cl::Platform::get(&platforms);
-  auto platform = platforms.front(); // here you can select between Intel, AMD or Nvidia
+  assert((size_t)platform_num < platforms.size());
+  auto platform = platforms[platform_num]; // here you can select between Intel, AMD or Nvidia
   std::vector<cl::Device> devices;
   platform.getDevices(CL_DEVICE_TYPE_ALL, &devices);
   auto device = devices.front(); // here you can select between different Accelerators
@@ -84,6 +87,7 @@ For example: ./multi_cq 10000 512 4)";
 #ifndef OPENCL_1
     program.build("-cl-std=CL2.0 -cl-mad-enable -cl-fast-relaxed-math");
 #else
+    cout << "[WARN] Compling kernel in opencl 1.x mode\n";
     program.build("-cl-mad-enable  -cl-fast-relaxed-math");
 #endif
   } catch (...) {
@@ -118,6 +122,7 @@ For example: ./multi_cq 10000 512 4)";
 
   auto t1_ocl = chrono::high_resolution_clock::now();
 
+  cl_int ocl_err {CL_SUCCESS};
   int cq_elem_count = n_elem / cq_count;
   int cq_elem_size = cq_elem_count * sizeof(h_data[0]);
   for (int i = 0; i < cq_count; ++i) {
@@ -130,14 +135,14 @@ For example: ./multi_cq 10000 512 4)";
     vector<cl::Event> ndrange_deps(1), read_deps(1);
 
     // 3rd(offset) param is on device, 4th(amount) and 5th(start void ptr) are on host
-    queues[i].enqueueWriteBuffer
+    ocl_err |= queues[i].enqueueWriteBuffer
       (buf_src, CL_FALSE, offset_with_size, cq_elem_size, h_data.data() + offset, nullptr, ndrange_deps.data());
-    queues[i].enqueueNDRangeKernel
+    ocl_err |= queues[i].enqueueNDRangeKernel
       (kernel, offset_ndrange, global, local, &ndrange_deps, read_deps.data());
-    queues[i].enqueueReadBuffer
+    ocl_err |= queues[i].enqueueReadBuffer
       (buf_target, CL_FALSE, offset_with_size, cq_elem_size, d_output.data() + offset, &read_deps, nullptr);
   }
-  for_each(queues.begin(), queues.end(), [&](auto& q){q.finish();});
+  for_each(queues.begin(), queues.end(), [&](auto& q){ocl_err |= q.finish();});
 
   auto t2_ocl = chrono::high_resolution_clock::now();
 
@@ -150,6 +155,8 @@ For example: ./multi_cq 10000 512 4)";
        << "\n[INFO] OpenCL time:\t" << ocl_time    << "ms" <<  '\n';
 
   auto location = mismatch(h_output.begin(), h_output.end(), d_output.begin());  // cpp = GOD
+  // TODO: ooutput oclerr
+  cout << "ocl_err status = " << ocl_err << '\n';
   if (location.first == h_output.end()) {
     cout.precision(2);
     cout << "[INFO] Test PASS! No mismatch found!\n" << "[INFO] Achived speedup of "
